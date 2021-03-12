@@ -31,8 +31,9 @@ public class BasicStreamingJob {
 
     private static DataStream<String> createSourceFromApplicationProperties(StreamExecutionEnvironment env) throws IOException {
         Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
-        return env.addSource(new FlinkKinesisConsumer<>(inputStreamName, new SimpleStringSchema(),
-                applicationProperties.get("ConsumerConfigProperties")));
+        Properties configProps = applicationProperties.get("ConsumerConfigProperties");
+        String inputStreamName = configProps.getProperty("InputStreamName", BasicStreamingJob.inputStreamName);
+        return env.addSource(new FlinkKinesisConsumer<>(inputStreamName, new SimpleStringSchema(), configProps));
     }
 
     private static FlinkKinesisProducer<String> createSinkFromStaticConfig() {
@@ -48,8 +49,9 @@ public class BasicStreamingJob {
 
     private static FlinkKinesisProducer<String> createSinkFromApplicationProperties() throws IOException {
         Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
-        FlinkKinesisProducer<String> sink = new FlinkKinesisProducer<>(new SimpleStringSchema(),
-                applicationProperties.get("ProducerConfigProperties"));
+        Properties configProps = applicationProperties.get("ProducerConfigProperties");
+        String outputStreamName = configProps.getProperty("OutputStreamName", BasicStreamingJob.outputStreamName);
+        FlinkKinesisProducer<String> sink = new FlinkKinesisProducer<>(new SimpleStringSchema(), configProps);
 
         sink.setDefaultStream(outputStreamName);
         sink.setDefaultPartition("0");
@@ -60,15 +62,11 @@ public class BasicStreamingJob {
         // set up the streaming execution environment
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        /* if you would like to use runtime configuration properties, uncomment the lines below
-         * DataStream<String> input = createSourceFromApplicationProperties(env);
-         */
-        DataStream<String> input = createSourceFromStaticConfig(env);
+        DataStream<String> input = createSourceFromApplicationProperties(env);
+        // DataStream<String> input = createSourceFromStaticConfig(env);
 
-        /* if you would like to use runtime configuration properties, uncomment the lines below
-         * input.addSink(createSinkFromApplicationProperties())
-         */
-        input.addSink(createSinkFromStaticConfig());
+        input.addSink(createSinkFromApplicationProperties());
+        // input.addSink(createSinkFromStaticConfig());
 
         env.execute("Flink Streaming Java API Skeleton");
     }
